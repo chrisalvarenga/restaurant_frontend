@@ -3,8 +3,8 @@
 // useState guarda datos que, al cambiar, provocan que el componente se redibuje.
 // useEffect ejecuta código con efectos secundarios (fetch, timers, etc.) fuera del render.
 import { useState, useEffect } from 'react';
-import { API_BASE_URL, getMenu, createMenuItem, updateMenuItem, deleteMenuItem } from '../api/client';
-import AdminPinModal from '../components/AdminPinModal';
+import { getMenu, createMenuItem, updateMenuItem, deleteMenuItem } from '../api/client';
+import Icon from '../components/Icon';
 
 // ─── Estado inicial del formulario ────────────────────────────────────────────
 // Lo definimos FUERA del componente para no recrearlo en cada render.
@@ -19,49 +19,21 @@ export default function MenuAdminPage() {
   // `loading` → true mientras cargamos el menú inicial
   // `saving`  → true mientras el formulario está enviando (evita doble click)
   // `error`   → string con mensaje de error, o '' si no hay error
-  // `authenticated` → true si el PIN es correcto
   const [menu, setMenu] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [authenticated, setAuthenticated] = useState(false);
-
-  // ── Verificar token al montar ────────────────────────────────────────────
-  useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      // Verificar que el token sea válido
-      fetch(`${API_BASE_URL}/admin/verify-token?token=${encodeURIComponent(token)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.valid) {
-            setAuthenticated(true);
-          } else {
-            localStorage.removeItem('adminToken');
-            setAuthenticated(false);
-          }
-        })
-        .catch(() => {
-          setAuthenticated(false);
-        });
-    }
-  }, []);
 
   // ── Cargar menú al montar ────────────────────────────────────────────────
-  // Solo carga si está autenticado
+  // El acceso a esta página ya está controlado por RequireRole en App.jsx.
   useEffect(() => {
-    if (!authenticated) {
-      setLoading(false);
-      return;
-    }
-
     getMenu()
       .then(setMenu)
       .catch(() => setError('No se pudo cargar el menú.'))
       .finally(() => setLoading(false));
-  }, [authenticated]);
+  }, []);
 
   // ── Derived state: agrupar por categoría ────────────────────────────────
   // Este valor se calcula en cada render a partir de `menu`.
@@ -167,19 +139,6 @@ export default function MenuAdminPage() {
   // El JSX que retorna describe cómo se ve el componente.
   // React lo compara con el render anterior (Virtual DOM diff) y solo actualiza
   // los elementos del DOM real que cambiaron.
-  
-  // Si no está autenticado, mostrar modal de PIN
-  if (!authenticated) {
-    return (
-      <AdminPinModal
-        onSuccess={() => setAuthenticated(true)}
-        validateUrl={`${API_BASE_URL}/admin/validate-pin`}
-        verifyUrl={`${API_BASE_URL}/admin/verify-token`}
-        storageKey="adminToken"
-      />
-    );
-  }
-
   if (loading) return <div className="loading">Cargando menú...</div>;
 
   return (
@@ -189,7 +148,10 @@ export default function MenuAdminPage() {
       {/* La clase cambia dinámicamente según si estamos editando o creando.
           Esto es JSX: las expresiones JS van entre llaves {}. */}
       <section className={`admin-form-section ${editing ? 'editing' : ''}`}>
-        <h2>{editing ? '✏️ Editar Item' : '➕ Nuevo Item del Menú'}</h2>
+        <h2>
+          <Icon name={editing ? 'pencil' : 'plus'} size={18} />
+          {editing ? 'Editar Item' : 'Nuevo Item del Menú'}
+        </h2>
 
         {error && <p className="error-msg">{error}</p>}
 

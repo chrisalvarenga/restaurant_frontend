@@ -1,5 +1,8 @@
 node_modules/
 dist/
+.env
+.env.*
+!.env.example
 *.md
 CLAUDE.md
 claude.md

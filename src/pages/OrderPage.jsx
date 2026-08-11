@@ -3,10 +3,14 @@ import { getMenu, createOrder } from '../api/client';
 import MenuItem from '../components/MenuItem';
 import Cart from '../components/Cart';
 
-export default function OrderPage() {
+/**
+ * Composer de pedido para una mesa específica. Se usa embebido en
+ * FloorPlanPage (no es una ruta propia) — el mesero ya está identificado
+ * por la sesión activa, aquí solo elige items y confirma el envío a cocina.
+ */
+export default function OrderPage({ table, onClose, onSubmitted }) {
   const [menu, setMenu] = useState([]);
   const [cart, setCart] = useState([]);
-  const [tableNumber, setTableNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
@@ -45,15 +49,15 @@ export default function OrderPage() {
     setError('');
     setSubmitting(true);
     try {
-      await createOrder({ items: cart, tableNumber, customerName, notes });
+      const order = await createOrder({ items: cart, tableId: table.id, customerName, notes });
       setCart([]);
-      setTableNumber('');
       setCustomerName('');
       setNotes('');
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 4000);
+      onSubmitted?.(order);
+      setTimeout(() => setSuccess(false), 2500);
     } catch (err) {
-      setError('Error al enviar el pedido. Intenta de nuevo.');
+      setError(err.message || 'Error al enviar el pedido. Intenta de nuevo.');
     } finally {
       setSubmitting(false);
     }
@@ -63,8 +67,12 @@ export default function OrderPage() {
 
   return (
     <div className="order-page">
+      <div className="composer-header">
+        <h2>Mesa {table.number}{table.zone ? ` · ${table.zone}` : ''}</h2>
+        <button className="btn-secondary" onClick={onClose}>Cerrar</button>
+      </div>
       <div className="menu-section">
-        <h2>Nuestro Menú</h2>
+        <h3>Nuestro Menú</h3>
         {error && <p className="error-msg">{error}</p>}
         <div className="category-tabs">
           {categories.map((cat) => (
@@ -89,14 +97,6 @@ export default function OrderPage() {
         <form className="order-form" onSubmit={handleSubmit}>
           <h3>Datos del Pedido</h3>
           <input
-            type="number"
-            placeholder="Número de mesa *"
-            value={tableNumber}
-            onChange={(e) => setTableNumber(e.target.value)}
-            min="1"
-            required
-          />
-          <input
             type="text"
             placeholder="Nombre del cliente (opcional)"
             value={customerName}
@@ -109,7 +109,7 @@ export default function OrderPage() {
             rows={3}
           />
           {error && <p className="error-msg">{error}</p>}
-          {success && <p className="success-msg">Pedido enviado a cocina!</p>}
+          {success && <p className="success-msg">¡Pedido enviado a cocina!</p>}
           <button type="submit" className="btn-primary" disabled={submitting || cart.length === 0}>
             {submitting ? 'Enviando...' : 'Enviar Pedido a Cocina'}
           </button>
